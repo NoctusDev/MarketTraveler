@@ -8,6 +8,6 @@
     "ApplicableVersion": "any",
     "DalamudApiLevel": 14,
     "IconUrl": "https://raw.githubusercontent.com/NoctusDev/MarketTraveler/main/images/icon.png",
-    "DownloadLinkInstall": "https://raw.githubusercontent.com/NoctusDev/MarketTraveler/main/latest.zip"
+    "DownloadLinkInstall": "https://github.com/NoctusDev/MarketTraveler/releases/latest/download/latest.zip"
   }
 ]
