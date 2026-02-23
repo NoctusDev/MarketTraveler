@@ -50,6 +50,19 @@ namespace MarketTraveler.Logic
             Service.Framework.Update += OnUpdate;
         }
 
+        private void ChangeState(MarketState newState, int delayMs = 0)
+        {
+            if (State != newState)
+            {
+                Service.Log.Debug($"[MarketTraveler] State Transition: {State} -> {newState}");
+                State = newState;
+                if (delayMs > 0)
+                {
+                    NextActionTime = DateTime.Now.AddMilliseconds(delayMs);
+                }
+            }
+        }
+
         public void StartBuying(uint itemId, int totalNeeded, int maxUnitPrice)
         {
             if (!IsDone && TargetItemId == itemId && State != MarketState.Idle && State != MarketState.Done) 
@@ -68,27 +81,26 @@ namespace MarketTraveler.Logic
             IsDone = false;
             StepRequested = false;
             
-            State = MarketState.WaitForSearchWindow;
-            
-            // [TIMER TWEAK] Wait for the Market Board to fully open before typing.
-            // Risk: If too fast, it types the name before the search box exists.
-            NextActionTime = DateTime.Now.AddMilliseconds(250); 
             TimeoutTime = DateTime.Now.AddSeconds(45); 
             
-            Service.Log.Info($"Worker started! Item: {TargetItemName} ({itemId}) | Need: {TargetQty}");
+            Service.Log.Info($"[MarketTraveler] Worker started! Item: {TargetItemName} ({itemId}) | Need: {TargetQty} | Max Price: {MaxUnitPrice}");
+            
+            ChangeState(MarketState.WaitForSearchWindow, 250);
         }
 
         public void Stop()
         {
-            State = MarketState.Idle;
+            Service.Log.Info("[MarketTraveler] Worker manually stopped.");
+            ChangeState(MarketState.Idle);
             IsDone = true;
         }
 
         public void ForceDone()
         {
+            Service.Log.Info("[MarketTraveler] Worker forced to complete/abort current item.");
             SessionPurchasedQty = 0;
             IsDone = true;
-            State = MarketState.Idle;
+            ChangeState(MarketState.Idle);
         }
 
         private void OnUpdate(IFramework framework)
@@ -104,7 +116,7 @@ namespace MarketTraveler.Logic
             {
                 if (DateTime.Now > TimeoutTime)
                 {
-                    Service.Log.Error($"MarketBoardAuto Timed Out while in state: {State}! Aborting item.");
+                    Service.Log.Error($"[MarketTraveler] TIMEOUT ERROR: Worker got stuck in state: {State} for too long! Aborting item.");
                     ForceDone();
                     return;
                 }
@@ -115,10 +127,14 @@ namespace MarketTraveler.Logic
             {
                 case MarketState.WaitForSearchWindow:
                     var searchAddonPtr = Service.GameGui.GetAddonByName("ItemSearch", 1);
-                    if (searchAddonPtr.Address != IntPtr.Zero && ((AtkUnitBase*)searchAddonPtr.Address)->IsVisible)
+                    if (searchAddonPtr.Address != IntPtr.Zero)
                     {
                         var searchAddon = (AtkUnitBase*)searchAddonPtr.Address;
                         
+                        if (!searchAddon->IsVisible || searchAddon->UldManager.LoadedState != AtkLoadState.Loaded) return;
+
+                        Service.Log.Debug("[MarketTraveler] ItemSearch window loaded. Typing item name...");
+
                         byte[] nameBytes = Encoding.UTF8.GetBytes(TargetItemName + "\0");
                         fixed (byte* ptr = nameBytes)
                         {
@@ -134,21 +150,24 @@ namespace MarketTraveler.Logic
                             searchAddon->FireCallback(8, values);
                         }
 
-                        State = MarketState.WaitAfterTextSearch;
-                        
-                        // [TIMER TWEAK] Time needed for the Server to process your text search and return the list of items.
-                        // Risk: If too fast, the bot tries to click the item before the server populates the list.
-                        NextActionTime = DateTime.Now.AddMilliseconds(800); 
+                        ChangeState(MarketState.WaitAfterTextSearch, 800);
                     }
                     break;
                     
                 case MarketState.WaitAfterTextSearch:
                     var saPtr = Service.GameGui.GetAddonByName("ItemSearch", 1);
-                    if (saPtr.Address != IntPtr.Zero && ((AtkUnitBase*)saPtr.Address)->IsVisible)
+                    if (saPtr.Address != IntPtr.Zero)
                     {
                         var searchAddon = (AtkUnitBase*)saPtr.Address;
+                        
+                        if (!searchAddon->IsVisible || searchAddon->UldManager.LoadedState != AtkLoadState.Loaded) return;
+
                         var listNode = searchAddon->GetNodeById(139); 
-                        if (listNode == null) return; 
+                        if (listNode == null) 
+                        {
+                            Service.Log.Warning("[MarketTraveler] WaitAfterTextSearch: Node 139 is null. Waiting...");
+                            return; 
+                        }
                         
                         var listComponent = (AtkComponentList*)((AtkComponentNode*)listNode)->Component;
                         if (listComponent == null || listComponent->ListLength == 0) return; 
@@ -168,39 +187,39 @@ namespace MarketTraveler.Logic
 
                         if (exactMatchIndex == -1)
                         {
+                            Service.Log.Warning($"[MarketTraveler] Could not find an exact match for {cleanTarget} in the search results.");
                             ForceDone();
                             return;
                         }
+
+                        Service.Log.Debug($"[MarketTraveler] Found {TargetItemName} at index {exactMatchIndex}. Clicking item...");
 
                         var values = stackalloc AtkValue[2];
                         values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; values[0].Int = 5;
                         values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; values[1].Int = exactMatchIndex; 
                         searchAddon->FireCallback(2, values);
                         
-                        State = MarketState.WaitForResultWindow;
-                        
-                        // [TIMER TWEAK] Time it takes for the item's specific price listing window to visibly open on screen.
-                        // Risk: If too fast, it tries to read prices before the window exists.
-                        NextActionTime = DateTime.Now.AddMilliseconds(500);
+                        ChangeState(MarketState.WaitForResultWindow, 500);
                     }
                     break;
 
                 case MarketState.WaitForResultWindow:
                     var resultAddonPtr = Service.GameGui.GetAddonByName("ItemSearchResult", 1);
-                    if (resultAddonPtr.Address != IntPtr.Zero && ((AtkUnitBase*)resultAddonPtr.Address)->IsVisible)
+                    if (resultAddonPtr.Address != IntPtr.Zero)
                     {
                         var resultAddon = (AtkUnitBase*)resultAddonPtr.Address;
+                        
+                        if (!resultAddon->IsVisible || resultAddon->UldManager.LoadedState != AtkLoadState.Loaded) return;
+
                         var listNode = resultAddon->GetNodeById(26);
                         if (listNode == null) return; 
                         
                         var listComponent = (AtkComponentList*)((AtkComponentNode*)listNode)->Component;
                         if (listComponent == null || listComponent->ListLength == 0) return; 
 
-                        State = MarketState.ProcessResultWindow;
+                        Service.Log.Debug("[MarketTraveler] ItemSearchResult window fully loaded. Processing prices...");
                         
-                        // [TIMER TWEAK] Time needed for the Server to transmit the Gil prices into the window.
-                        // Risk: If too fast, the bot reads the prices as '0' and assumes everything is too expensive.
-                        NextActionTime = DateTime.Now.AddMilliseconds(500); 
+                        ChangeState(MarketState.ProcessResultWindow, 500);
                     }
                     break;
 
@@ -209,13 +228,26 @@ namespace MarketTraveler.Logic
                     if (procAddonPtr.Address != IntPtr.Zero)
                     {
                         var resultAddon = (AtkUnitBase*)procAddonPtr.Address;
+                        
+                        if (!resultAddon->IsVisible || resultAddon->UldManager.LoadedState != AtkLoadState.Loaded) return;
+
                         var agentModule = AgentModule.Instance();
                         var agent = (AgentItemSearch*)agentModule->GetAgentByInternalId(AgentId.ItemSearch);
                         
-                        if (agent != null && agent->ResultItemId != TargetItemId) { FinishShopping(resultAddon); return; }
+                        if (agent != null && agent->ResultItemId != TargetItemId) 
+                        { 
+                            Service.Log.Debug("[MarketTraveler] Agent ResultItemId mismatch. Finishing shopping.");
+                            FinishShopping(resultAddon); 
+                            return; 
+                        }
 
                         int currentInv = InventoryManager.Instance()->GetInventoryItemCount(TargetItemId);
-                        if (currentInv >= TargetQty) { FinishShopping(resultAddon); return; }
+                        if (currentInv >= TargetQty) 
+                        { 
+                            Service.Log.Info($"[MarketTraveler] Target quantity reached ({currentInv}/{TargetQty}). Wrapping up.");
+                            FinishShopping(resultAddon); 
+                            return; 
+                        }
 
                         var listComponent = (AtkComponentList*)((AtkComponentNode*)resultAddon->GetNodeById(26))->Component;
                         int targetIndex = -1;
@@ -238,33 +270,38 @@ namespace MarketTraveler.Logic
                             if (RetryCount < 3)
                             {
                                 RetryCount++;
-                                // [TIMER TWEAK] How long to wait before double-checking a completely empty board.
-                                NextActionTime = DateTime.Now.AddMilliseconds(800); 
+                                Service.Log.Debug($"[MarketTraveler] No suitable prices found. Retry {RetryCount}/3...");
+                                ChangeState(State, 800); 
                                 return;
                             }
-                            else { FinishShopping(resultAddon); return; }
+                            else 
+                            { 
+                                Service.Log.Info("[MarketTraveler] All retries exhausted. No valid items under max price.");
+                                FinishShopping(resultAddon); 
+                                return; 
+                            }
                         }
+
+                        Service.Log.Debug($"[MarketTraveler] Selecting listing at index {targetIndex}. Quantity: {PendingQty}.");
 
                         var values = stackalloc AtkValue[2];
                         values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; values[0].Int = 2; 
                         values[1].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; values[1].Int = targetIndex; 
                         resultAddon->FireCallback(2, values);
                         
-                        State = MarketState.WaitForConfirmWindow;
-                        
-                        // [TIMER TWEAK] Time for the "Are you sure you want to buy this?" pop-up window to appear.
-                        NextActionTime = DateTime.Now.AddMilliseconds(400); 
+                        ChangeState(MarketState.WaitForConfirmWindow, 400);
                     }
                     break;
                     
                 case MarketState.WaitForConfirmWindow:
                     var confirmAddonPtr = Service.GameGui.GetAddonByName("SelectYesno", 1); 
-                    if (confirmAddonPtr.Address != IntPtr.Zero && ((AtkUnitBase*)confirmAddonPtr.Address)->IsVisible)
+                    if (confirmAddonPtr.Address != IntPtr.Zero)
                     {
-                        State = MarketState.ProcessConfirmWindow;
+                        var confirmAddon = (AtkUnitBase*)confirmAddonPtr.Address;
                         
-                        // [TIMER TWEAK] Gives the UI a tiny moment to render the Yes/No buttons before clicking.
-                        NextActionTime = DateTime.Now.AddMilliseconds(200); 
+                        if (!confirmAddon->IsVisible || confirmAddon->UldManager.LoadedState != AtkLoadState.Loaded) return;
+
+                        ChangeState(MarketState.ProcessConfirmWindow, 200);
                     }
                     break;
 
@@ -272,52 +309,54 @@ namespace MarketTraveler.Logic
                     var procConfirmPtr = Service.GameGui.GetAddonByName("SelectYesno", 1); 
                     if (procConfirmPtr.Address != IntPtr.Zero)
                     {
+                        var procConfirmAddon = (AtkUnitBase*)procConfirmPtr.Address;
+                        if (!procConfirmAddon->IsVisible || procConfirmAddon->UldManager.LoadedState != AtkLoadState.Loaded) return;
+
+                        Service.Log.Debug("[MarketTraveler] Confirming purchase...");
+
                         var values = stackalloc AtkValue[1];
                         values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; values[0].Int = 0; 
-                        ((AtkUnitBase*)procConfirmPtr.Address)->FireCallback(1, values);
+                        procConfirmAddon->FireCallback(1, values);
                         
                         SessionPurchasedQty += PendingQty; 
                         RetryCount = 0; 
                         TimeoutTime = DateTime.Now.AddSeconds(20); 
                         
-                        State = MarketState.CleanUpConfirmWindow;
-                        
-                        // [TIMER TWEAK] *** THE MOST IMPORTANT TIMER ***
-                        // This is how long the bot waits for the Server to physically deduct your Gil and hand you the item.
-                        // Risk: If too fast, the bot tries to buy the NEXT item before the server finishes processing this one, 
-                        // causing the server to reject the purchase with a "Transaction in progress" red error text.
-                        NextActionTime = DateTime.Now.AddMilliseconds(800); 
+                        ChangeState(MarketState.CleanUpConfirmWindow, 800);
                     }
                     break;
 
                 case MarketState.CleanUpConfirmWindow:
                     var cleanupPtr = Service.GameGui.GetAddonByName("SelectYesno", 1); 
-                    if (cleanupPtr.Address != IntPtr.Zero && ((AtkUnitBase*)cleanupPtr.Address)->IsVisible)
+                    if (cleanupPtr.Address != IntPtr.Zero)
                     {
-                        var closeValues = stackalloc AtkValue[1];
-                        closeValues[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; closeValues[0].Int = -1; 
-                        ((AtkUnitBase*)cleanupPtr.Address)->FireCallback(1, closeValues);
-                        try { ((AtkUnitBase*)cleanupPtr.Address)->Close(true); } catch { }
+                        var cleanupAddon = (AtkUnitBase*)cleanupPtr.Address;
+                        if (cleanupAddon->IsVisible)
+                        {
+                            Service.Log.Debug("[MarketTraveler] Closing confirm dialog...");
+                            var closeValues = stackalloc AtkValue[1];
+                            closeValues[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; closeValues[0].Int = -1; 
+                            cleanupAddon->FireCallback(1, closeValues);
+                            try { cleanupAddon->Close(true); } catch { }
+                        }
                     }
                     
-                    State = MarketState.WaitAfterPurchase;
-                    
-                    // [TIMER TWEAK] A tiny breather before it loops back around to read the result window again.
-                    NextActionTime = DateTime.Now.AddMilliseconds(250); 
+                    ChangeState(MarketState.WaitAfterPurchase, 250);
                     break;
 
                 case MarketState.WaitAfterPurchase:
-                    State = MarketState.WaitForResultWindow;
+                    ChangeState(MarketState.WaitForResultWindow);
                     break;
             }
         }
 
         private void FinishShopping(AtkUnitBase* resultAddon)
         {
+            Service.Log.Info("[MarketTraveler] Closing Market Board UI and finishing state.");
             var closeValues = stackalloc AtkValue[1];
             closeValues[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int; closeValues[0].Int = -1; 
             resultAddon->FireCallback(1, closeValues);
-            State = MarketState.Done;
+            ChangeState(MarketState.Done);
             IsDone = true; 
         }
 
