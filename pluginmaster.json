@@ -1,0 +1,13 @@
+[
+  {
+    "Author": "Scatterbrain",
+    "Name": "MarketTraveler",
+    "InternalName": "MarketTraveler",
+    "AssemblyVersion": "1.0.0.0",
+    "Description": "I love cocaine I love it so much please give me 5000000 coke right now!!!",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 14,
+    "IconUrl": "https://raw.githubusercontent.com/NoctusDev/MarketTraveler/main/images/icon.png",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/NoctusDev/MarketTraveler/main/latest.zip"
+  }
+]

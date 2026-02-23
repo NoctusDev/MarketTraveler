@@ -1,0 +1,9 @@
+E:\MarketTraveler\bin\Release\MarketTraveler.deps.json
+E:\MarketTraveler\bin\Release\MarketTraveler.dll
+E:\MarketTraveler\obj\Release\MarketTraveler.csproj.AssemblyReference.cache
+E:\MarketTraveler\obj\Release\MarketTraveler.GeneratedMSBuildEditorConfig.editorconfig
+E:\MarketTraveler\obj\Release\MarketTraveler.AssemblyInfoInputs.cache
+E:\MarketTraveler\obj\Release\MarketTraveler.AssemblyInfo.cs
+E:\MarketTraveler\obj\Release\MarketTraveler.csproj.CoreCompileInputs.cache
+E:\MarketTraveler\obj\Release\MarketTraveler.sourcelink.json
+E:\MarketTraveler\obj\Release\MarketTraveler.dll

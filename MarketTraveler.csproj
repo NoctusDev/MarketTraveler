@@ -1,0 +1,25 @@
+<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+
+  <PropertyGroup>
+    <Authors>Scatter</Authors>
+    <Company>BlackSlaveBoysInc</Company>
+    <Version>1.0.0.0</Version>
+    <Description>I love cocaine I love it so much please give me 5000000 coke right now!!!</Description>
+    <Copyright></Copyright>
+    <PackageProjectUrl>https://github.com/NoctusDev/MarketTraveler</PackageProjectUrl>
+    <Tags>market,travel,coke,cocaine,blackslaveboysinc,scatter</Tags>
+    <IconUrl>https://github.com/NoctusDev/MarketTraveler/blob/main/icon.png?raw=true</IconUrl>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Platforms>x64</Platforms>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,16 @@
+{
+  "Author": "Scatterbrain",
+  "Name": "MarketTraveler",
+  "InternalName": "MarketTraveler",
+  "AssemblyVersion": "1.0.0.0",
+  "Description": "Automates market board shopping across worlds.",
+  "Punchline": "Cross-world shopping made easy.",
+  "ApplicableVersion": "any",
+  "DalamudApiLevel": 14,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "ImageUrls": [],
+  "IconUrl": ""
+}
