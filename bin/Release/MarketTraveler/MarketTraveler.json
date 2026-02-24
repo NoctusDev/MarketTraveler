@@ -1,0 +1,20 @@
+{
+  "Author": "Scatterbrain",
+  "Name": "MarketTraveler",
+  "InternalName": "MarketTraveler",
+  "AssemblyVersion": "1.0.0.0",
+  "Description": "I love cocaine I love it so much please give me 5000000 coke right now!!!",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "market,travel,coke,cocaine,blackslaveboysinc,scatter"
+  ],
+  "DalamudApiLevel": 14,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "ImageUrls": [],
+  "IconUrl": "https://github.com/NoctusDev/MarketTraveler/blob/main/icon.png?raw=true",
+  "Punchline": "Cross-world shopping made easy.",
+  "AcceptsFeedback": true
+}

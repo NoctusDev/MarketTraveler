@@ -11,10 +11,10 @@ using System;
 using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("BlackSlaveBoysInc")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("release")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("I love cocaine I love it so much please give me 5000000 coke right now!!!")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0.0+4998d08b7767663872f1e7252c830aa26df09d35")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0.0+7b7f7c69c6d8b9e5d984b74661d5f048a74dedec")]
 [assembly: System.Reflection.AssemblyProductAttribute("MarketTraveler")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MarketTraveler")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
